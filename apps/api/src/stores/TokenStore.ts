@@ -16,6 +16,10 @@ export class TokenStore {
     return this.tokensByMint.get(mint);
   }
 
+  getTokens(): TokenInfo[] {
+    return Array.from(this.tokensByMint.values());
+  }
+
   private loadTokens(): Map<string, TokenInfo> {
     const raw = readFileSync(TOKENS_FILE_PATH, 'utf8');
     const parsed = JSON.parse(raw) as TokenInfo[];

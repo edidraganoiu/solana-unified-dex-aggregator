@@ -3,15 +3,15 @@ import { fileURLToPath } from 'node:url';
 
 import type { Pool, TokenInfo } from '../../domain/types.js';
 import { TokenStore } from '../../stores/TokenStore.js';
-import { encodeBase58 } from '../../utils/base58.js';
+import { encodeBase58, isValidBase58PublicKey } from '../../utils/base58.js';
 import { RpcClient } from '../../utils/rpcClient.js';
 import type { DexAdapter } from '../DexAdapter.js';
 
 const POOLS_FILE_PATH = fileURLToPath(new URL('../../../data/pools.raydium.json', import.meta.url));
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-const BASE_VAULT_OFFSET = 400;
-const QUOTE_VAULT_OFFSET = 432;
+const BASE_VAULT_OFFSET = 336;
+const QUOTE_VAULT_OFFSET = 368;
 const ADDRESS_BYTES = 32;
 const RAYDIUM_FEE_BPS = 25;
 
@@ -60,7 +60,15 @@ export class RaydiumAdapter implements DexAdapter {
       return [];
     }
 
-    const result = (await this.rpcClient.sendRequest('getMultipleAccounts', [this.poolIds, { encoding: 'base64' }])) as GetMultipleAccountsResult;
+    let result: GetMultipleAccountsResult;
+    try {
+      result = (await this.rpcClient.sendRequest('getMultipleAccounts', [
+        this.poolIds,
+        { encoding: 'base64' }
+      ])) as GetMultipleAccountsResult;
+    } catch {
+      return [];
+    }
     const accounts = result.value ?? [];
     const pools: Pool[] = [];
 
@@ -104,7 +112,8 @@ export class RaydiumAdapter implements DexAdapter {
 
   private loadPoolIds(): string[] {
     const raw = readFileSync(POOLS_FILE_PATH, 'utf8');
-    return JSON.parse(raw) as string[];
+    const parsed = JSON.parse(raw) as string[];
+    return parsed.filter((poolId) => isValidBase58PublicKey(poolId));
   }
 
   private async getTokenAccountAmount(tokenAccount: string): Promise<string> {
