@@ -12,6 +12,8 @@ type VerifyResponse = {
   valid: boolean;
 };
 
+type DexFilter = 'all' | 'raydium' | 'orca';
+
 const toLamports = (solAmount: string): string => {
   const value = Number(solAmount);
   if (!Number.isFinite(value) || value <= 0) {
@@ -34,11 +36,17 @@ const toUsd = (value: number | null): string => {
   return `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 };
 
+const toDexLabel = (dex: Quote['dex']) => {
+  return dex === 'raydium' ? 'Raydium' : 'Orca';
+};
+
 export default function Home() {
   const [amountSol, setAmountSol] = useState('1');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [quote, setQuote] = useState<Quote | null>(null);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [showAllRoutes, setShowAllRoutes] = useState(false);
+  const [preferredDex, setPreferredDex] = useState<DexFilter>('all');
 
   const [solUsd, setSolUsd] = useState<number | null>(null);
   const [marketLoading, setMarketLoading] = useState(false);
@@ -50,6 +58,30 @@ export default function Home() {
   const [adminLoading, setAdminLoading] = useState(false);
 
   const lamports = useMemo(() => toLamports(amountSol), [amountSol]);
+
+  const filteredQuotes = useMemo(() => {
+    if (preferredDex === 'all') {
+      return quotes;
+    }
+
+    return quotes.filter((quote) => quote.dex === preferredDex);
+  }, [quotes, preferredDex]);
+
+  const winner = filteredQuotes[0] ?? null;
+  const runnerUps = filteredQuotes.slice(1);
+
+  const savingsUsdc = useMemo(() => {
+    if (!winner || runnerUps.length === 0) {
+      return null;
+    }
+
+    const diffAtomic = Number(winner.amountOut) - Number(runnerUps[0].amountOut);
+    if (diffAtomic <= 0) {
+      return null;
+    }
+
+    return diffAtomic / 1_000_000;
+  }, [winner, runnerUps]);
 
   useEffect(() => {
     let isMounted = true;
@@ -103,22 +135,24 @@ export default function Home() {
   const onGetBestPrice = async () => {
     setLoading(true);
     setError(null);
+    setShowAllRoutes(false);
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/best-route?tokenIn=${SOL_MINT}&tokenOut=${USDC_MINT}&amount=${lamports}`
+        `${API_BASE_URL}/price?tokenIn=${SOL_MINT}&tokenOut=${USDC_MINT}&amount=${lamports}`
       );
 
       if (!response.ok) {
         throw new Error(`Request failed with status ${response.status}`);
       }
 
-      const payload = (await response.json()) as Quote | null;
-      setQuote(payload);
+      const payload = (await response.json()) as Quote[];
+      const sorted = [...payload].sort((a, b) => Number(b.amountOut) - Number(a.amountOut));
+      setQuotes(sorted);
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : 'Unknown error';
       setError(message);
-      setQuote(null);
+      setQuotes([]);
     } finally {
       setLoading(false);
     }
@@ -202,7 +236,7 @@ export default function Home() {
             </label>
           </div>
 
-          <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+          <div className="mt-4 grid gap-4 md:grid-cols-[1fr_220px_auto] md:items-end">
             <label className="block">
               <span className="mb-2 block text-sm text-[var(--muted)]">Amount In (SOL)</span>
               <input
@@ -213,7 +247,19 @@ export default function Home() {
                 type="number"
                 value={amountSol}
               />
-              <p className="mt-1 font-mono text-xs text-[var(--muted)]">Lamports: {lamports}</p>
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-sm text-[var(--muted)]">Preferred DEX</span>
+              <select
+                className="h-11 w-full rounded-xl border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 text-sm text-[var(--text)]"
+                onChange={(event) => setPreferredDex(event.target.value as DexFilter)}
+                value={preferredDex}
+              >
+                <option value="all">All</option>
+                <option value="raydium">Raydium</option>
+                <option value="orca">Orca</option>
+              </select>
             </label>
 
             <button
@@ -227,25 +273,68 @@ export default function Home() {
           </div>
 
           <div className="mt-8 rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-2)] p-5">
-            <h2 className="mb-4 text-lg font-medium text-[var(--text)]">Result</h2>
+            <h2 className="mb-4 text-lg font-medium text-[var(--text)]">Best Route</h2>
 
             {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
 
-            {!error && !quote ? (
-              <p className="text-sm text-[var(--muted)]">No quote yet. Click the button to fetch best route.</p>
+            {!error && !winner ? (
+              <p className="text-sm text-[var(--muted)]">No route yet. Click the button to fetch quotes.</p>
             ) : null}
 
-            {quote ? (
-              <div className="grid gap-2 text-sm text-[var(--text)]">
-                <p>
-                  Winning DEX: <span className="font-semibold capitalize text-[var(--accent-2)]">{quote.dex}</span>
+            {winner ? (
+              <div className="rounded-xl border border-[rgba(32,212,169,0.35)] bg-[rgba(17,32,48,0.65)] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm">
+                    Winning DEX:{' '}
+                    <span className="font-semibold capitalize text-[var(--accent-2)]">
+                      {toDexLabel(winner.dex)}
+                    </span>
+                  </p>
+                  {savingsUsdc !== null ? (
+                    <span className="rounded-full border border-[rgba(32,212,169,0.4)] bg-[rgba(32,212,169,0.18)] px-3 py-1 text-xs font-semibold text-[var(--accent-2)]">
+                      Saves {savingsUsdc.toFixed(4)} USDC
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-2 text-sm">
+                  Output Amount: <span className="font-semibold">{toUiUsdc(winner.amountOut)} USDC</span>
                 </p>
-                <p>
-                  Output Amount: <span className="font-semibold">{toUiUsdc(quote.amountOut)} USDC</span>
+                <p className="mt-1 text-sm">
+                  Price Impact: <span className="font-semibold">{winner.priceImpactPct}%</span>
                 </p>
-                <p>
-                  Price Impact: <span className="font-semibold">{quote.priceImpactPct}%</span>
-                </p>
+              </div>
+            ) : null}
+
+            {runnerUps.length > 0 ? (
+              <button
+                className="mt-4 rounded-lg border border-[var(--line)] px-3 py-2 text-sm text-[var(--text)] transition hover:border-[var(--accent)]"
+                onClick={() => setShowAllRoutes((previous) => !previous)}
+                type="button"
+              >
+                {showAllRoutes ? 'Hide All Routes' : 'Show All Routes'}
+              </button>
+            ) : null}
+
+            {showAllRoutes && runnerUps.length > 0 ? (
+              <div className="mt-4 overflow-hidden rounded-xl border border-[var(--line-soft)]">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-[rgba(13,25,42,0.8)] text-[var(--muted)]">
+                    <tr>
+                      <th className="px-4 py-2 font-medium">DEX</th>
+                      <th className="px-4 py-2 font-medium">Output (USDC)</th>
+                      <th className="px-4 py-2 font-medium">Price Impact</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {runnerUps.map((route) => (
+                      <tr className="border-t border-[var(--line-soft)]" key={`${route.dex}-${route.poolId}`}>
+                        <td className="px-4 py-2 font-medium text-[var(--text)]">{toDexLabel(route.dex)}</td>
+                        <td className="px-4 py-2 text-[var(--text)]">{toUiUsdc(route.amountOut)}</td>
+                        <td className="px-4 py-2 text-[var(--text)]">{route.priceImpactPct}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ) : null}
           </div>
