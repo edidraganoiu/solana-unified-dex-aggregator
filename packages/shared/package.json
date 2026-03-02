@@ -1,5 +1,5 @@
 {
-  "name": "@packages/shared",
+  "name": "@solana-dex/shared",
   "private": true,
   "version": "0.1.0",
   "type": "module",

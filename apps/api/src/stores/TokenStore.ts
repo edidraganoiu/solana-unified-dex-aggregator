@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import type { TokenInfo } from '@packages/shared';
+import type { TokenInfo } from '@solana-dex/shared';
 
 const TOKENS_FILE_PATH = fileURLToPath(new URL('../../data/tokens.json', import.meta.url));
 
