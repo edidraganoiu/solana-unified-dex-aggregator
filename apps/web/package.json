@@ -1,0 +1,10 @@
+{
+  "name": "@apps/web",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "echo 'Web app placeholder'",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint src --ext .ts,.tsx"
+  }
+}
