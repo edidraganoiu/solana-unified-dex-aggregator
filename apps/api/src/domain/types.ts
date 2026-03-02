@@ -1,1 +1,1 @@
-export type { DexId, Pool, TokenInfo } from '@packages/shared';
+export type { DexId, Pool, Quote, TokenInfo } from '@packages/shared';

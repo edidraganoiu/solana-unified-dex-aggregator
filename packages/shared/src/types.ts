@@ -21,3 +21,16 @@ export type Pool = {
     accounts: string[];
   };
 };
+
+export type Quote = {
+  dex: DexId;
+  poolId: string;
+  tokenIn: string;
+  tokenOut: string;
+  amountIn: string;
+  amountOut: string;
+  price: string;
+  feeBps: number;
+  priceImpactPct: string;
+  timestamp: string;
+};

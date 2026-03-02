@@ -1,1 +1,1 @@
-export type { DexId, Pool, TokenInfo } from './types.js';
+export type { DexId, Pool, Quote, TokenInfo } from './types.js';
