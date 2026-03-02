@@ -1,3 +1,1 @@
-export type Placeholder = {
-  id: string;
-};
+export type { DexId, Pool, TokenInfo } from './types.js';
