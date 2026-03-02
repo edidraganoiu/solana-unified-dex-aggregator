@@ -6,7 +6,7 @@ import { registerApiRoutes } from './routes/api.js';
 import { registerHomeRoute } from './routes/home.js';
 import { BestRouteService } from './services/BestRouteService.js';
 
-export const buildServer = (bestRouteService: BestRouteService) => {
+export const buildServer = (bestRouteService: BestRouteService, adminKey: string) => {
   const server = Fastify({ logger: true });
 
   void server.register(cors, {
@@ -34,7 +34,7 @@ export const buildServer = (bestRouteService: BestRouteService) => {
   });
 
   registerHomeRoute(server);
-  registerApiRoutes(server, bestRouteService);
+  registerApiRoutes(server, bestRouteService, adminKey);
 
   return server;
 };

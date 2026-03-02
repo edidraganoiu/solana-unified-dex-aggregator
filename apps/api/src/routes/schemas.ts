@@ -10,3 +10,7 @@ export const quoteQuerySchema = z.object({
   tokenOut: z.string().min(1),
   amount: z.string().min(1)
 });
+
+export const adminVerifyBodySchema = z.object({
+  key: z.string().min(1)
+});

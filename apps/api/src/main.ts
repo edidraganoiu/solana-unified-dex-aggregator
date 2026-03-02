@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import { OrcaAdapter } from './adapters/orca/OrcaAdapter.js';
 import { RaydiumAdapter } from './adapters/raydium/RaydiumAdapter.js';
 import { buildServer } from './server.js';
@@ -14,10 +16,13 @@ const poolIngestionService = new PoolIngestionService(
   poolStore
 );
 
+const adminKey = randomBytes(16).toString('hex');
+console.log(`[ADMIN KEY]: ${adminKey}`);
+
 await poolIngestionService.refreshAll();
 poolIngestionService.start();
 
-const server = buildServer(bestRouteService);
+const server = buildServer(bestRouteService, adminKey);
 const port = Number(process.env.PORT ?? 3000);
 
 try {
