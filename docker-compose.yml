@@ -1,0 +1,37 @@
+version: '3.9'
+
+services:
+  api:
+    image: node:20-alpine
+    container_name: solana-dex-api
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+      - api_node_modules:/workspace/node_modules
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_TLS_REJECT_UNAUTHORIZED: '0'
+      PORT: '3000'
+    command: >
+      sh -lc "corepack enable && pnpm install && pnpm --filter @apps/api dev"
+
+  web:
+    image: node:20-alpine
+    container_name: solana-dex-web
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+      - web_node_modules:/workspace/node_modules
+    ports:
+      - '3001:3001'
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: 'http://localhost:3000'
+    depends_on:
+      - api
+    command: >
+      sh -lc "corepack enable && pnpm install && pnpm --filter @apps/web dev"
+
+volumes:
+  api_node_modules:
+  web_node_modules:
