@@ -1,18 +1,12 @@
 import Fastify from 'fastify';
 import { ZodError } from 'zod';
 
-import { OrcaAdapter } from './adapters/orca/OrcaAdapter.js';
-import { RaydiumAdapter } from './adapters/raydium/RaydiumAdapter.js';
 import { registerApiRoutes } from './routes/api.js';
 import { registerHomeRoute } from './routes/home.js';
 import { BestRouteService } from './services/BestRouteService.js';
-import { QuoteService } from './services/QuoteService.js';
 
-export const buildServer = () => {
+export const buildServer = (bestRouteService: BestRouteService) => {
   const server = Fastify({ logger: true });
-
-  const quoteService = new QuoteService();
-  const bestRouteService = new BestRouteService([new RaydiumAdapter(), new OrcaAdapter()], quoteService);
 
   server.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {

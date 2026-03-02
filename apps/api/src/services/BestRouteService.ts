@@ -1,17 +1,17 @@
 import Decimal from 'decimal.js';
 
 import type { Pool, Quote, TokenInfo } from '../domain/types.js';
+import { PoolStore } from '../stores/PoolStore.js';
 import { TokenStore } from '../stores/TokenStore.js';
-import type { DexAdapter } from '../adapters/DexAdapter.js';
 import { QuoteService } from './QuoteService.js';
 
 export class BestRouteService {
-  private readonly adapters: DexAdapter[];
+  private readonly poolStore: PoolStore;
   private readonly quoteService: QuoteService;
   private readonly tokenStore: TokenStore;
 
-  constructor(adapters: DexAdapter[], quoteService: QuoteService, tokenStore = new TokenStore()) {
-    this.adapters = adapters;
+  constructor(poolStore: PoolStore, quoteService: QuoteService, tokenStore = new TokenStore()) {
+    this.poolStore = poolStore;
     this.quoteService = quoteService;
     this.tokenStore = tokenStore;
   }
@@ -20,41 +20,20 @@ export class BestRouteService {
     return this.tokenStore.getTokens();
   }
 
-  async getPools(tokenA?: string, tokenB?: string): Promise<Pool[]> {
-    const results = await Promise.allSettled(this.adapters.map((adapter) => adapter.fetchPools()));
-    const allPools = results
-      .filter((result): result is PromiseFulfilledResult<Pool[]> => result.status === 'fulfilled')
-      .flatMap((result) => result.value);
-
-    if (!tokenA && !tokenB) {
-      return allPools;
-    }
-
-    return allPools.filter((pool) => {
-      const mints = [pool.tokenA.mint, pool.tokenB.mint];
-
-      if (tokenA && !mints.includes(tokenA)) {
-        return false;
-      }
-
-      if (tokenB && !mints.includes(tokenB)) {
-        return false;
-      }
-
-      return true;
-    });
+  getPools(tokenA?: string, tokenB?: string): Pool[] {
+    return this.poolStore.getPools(tokenA, tokenB);
   }
 
-  async getQuotes(tokenIn: string, tokenOut: string, amount: string): Promise<Quote[]> {
-    const pools = await this.getPools(tokenIn, tokenOut);
+  getQuotes(tokenIn: string, tokenOut: string, amount: string): Quote[] {
+    const pools = this.getPools(tokenIn, tokenOut);
 
     return pools
       .map((pool) => this.quoteService.computeQuote(pool, amount, tokenIn))
       .filter((quote): quote is Quote => quote !== null && quote.tokenOut === tokenOut);
   }
 
-  async getBestRoute(tokenIn: string, tokenOut: string, amount: string): Promise<Quote | null> {
-    const quotes = await this.getQuotes(tokenIn, tokenOut, amount);
+  getBestRoute(tokenIn: string, tokenOut: string, amount: string): Quote | null {
+    const quotes = this.getQuotes(tokenIn, tokenOut, amount);
     if (quotes.length === 0) {
       return null;
     }
